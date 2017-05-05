@@ -37,6 +37,7 @@
     var openIdStack = [];
     var keydownIsBound = false;
     var openOnePerName = false;
+    var closeByNavigationDialogStack = [];
 
 
     m.provider('ngDialog', function () {
@@ -443,17 +444,23 @@
                     },
 
                     detectUIRouter: function() {
-                        //Detect if ui-router module is installed if not return false
-                        try {
-                            angular.module('ui.router');
-                            return true;
-                        } catch(err) {
-                            return false;
+                        // Detect if ui-router module is installed
+                        // Returns ui-router version string if installed
+                        // Otherwise false
+
+                        if ($injector.has('$transitions')) {
+                            // Only 1.0.0+ ui.router allows us to inject $transitions
+                            return '1.0.0+';
                         }
+                        else if ($injector.has('$state')) {
+                            // The legacy ui.router allows us to inject $state
+                            return 'legacy';
+                        }
+                        return false;
                     },
 
                     getRouterLocationEventName: function() {
-                        if(privateMethods.detectUIRouter()) {
+                        if (privateMethods.detectUIRouter()) {
                             return '$stateChangeStart';
                         }
                         return '$locationChangeStart';
@@ -685,11 +692,7 @@
                             }
 
                             if (options.closeByNavigation) {
-                                var eventName = privateMethods.getRouterLocationEventName();
-                                $rootScope.$on(eventName, function ($event) {
-                                    if (privateMethods.closeDialog($dialog) === false)
-                                        $event.preventDefault();
-                                });
+                                closeByNavigationDialogStack.push($dialog);
                             }
 
                             if (options.preserveFocus) {
@@ -868,6 +871,31 @@
                         }
                     }
                 );
+
+                // Listen to navigation events to close dialog
+                var uiRouterVersion = privateMethods.detectUIRouter();
+                if (uiRouterVersion === '1.0.0+') {
+                    var $transitions = $injector.get('$transitions');
+                    $transitions.onStart({}, function (trans) {
+                        while (closeByNavigationDialogStack.length > 0) {
+                            var toCloseDialog = closeByNavigationDialogStack.pop();
+                            if (privateMethods.closeDialog(toCloseDialog) === false) {
+                                return false;
+                            }
+                        }
+                    });
+                }
+                else {
+                    var eventName = uiRouterVersion === 'legacy' ? '$stateChangeStart' : '$locationChangeStart';
+                    $rootScope.$on(eventName, function ($event) {
+                        while (closeByNavigationDialogStack.length > 0) {
+                            var toCloseDialog = closeByNavigationDialogStack.pop();
+                            if (privateMethods.closeDialog(toCloseDialog) === false) {
+                                $event.preventDefault();
+                            }
+                        }
+                    });
+                }
 
                 return publicMethods;
             }];
