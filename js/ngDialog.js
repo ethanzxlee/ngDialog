@@ -39,6 +39,8 @@
     var openOnePerName = false;
     var closeByNavigationDialogStack = [];
 
+    var UI_ROUTER_VERSION_LEGACY = 'legacy';
+    var UI_ROUTER_VERSION_ONE_PLUS = '1.0.0+';
 
     m.provider('ngDialog', function () {
         var defaults = this.defaults = {
@@ -450,11 +452,11 @@
 
                         if ($injector.has('$transitions')) {
                             // Only 1.0.0+ ui.router allows us to inject $transitions
-                            return '1.0.0+';
+                            return UI_ROUTER_VERSION_ONE_PLUS;
                         }
                         else if ($injector.has('$state')) {
                             // The legacy ui.router allows us to inject $state
-                            return 'legacy';
+                            return UI_ROUTER_VERSION_LEGACY;
                         }
                         return false;
                     },
@@ -874,7 +876,7 @@
 
                 // Listen to navigation events to close dialog
                 var uiRouterVersion = privateMethods.detectUIRouter();
-                if (uiRouterVersion === '1.0.0+') {
+                if (uiRouterVersion === UI_ROUTER_VERSION_ONE_PLUS) {
                     var $transitions = $injector.get('$transitions');
                     $transitions.onStart({}, function (trans) {
                         while (closeByNavigationDialogStack.length > 0) {
@@ -886,7 +888,7 @@
                     });
                 }
                 else {
-                    var eventName = uiRouterVersion === 'legacy' ? '$stateChangeStart' : '$locationChangeStart';
+                    var eventName = uiRouterVersion === UI_ROUTER_VERSION_LEGACY ? '$stateChangeStart' : '$locationChangeStart';
                     $rootScope.$on(eventName, function ($event) {
                         while (closeByNavigationDialogStack.length > 0) {
                             var toCloseDialog = closeByNavigationDialogStack.pop();
